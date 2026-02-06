@@ -1,12 +1,13 @@
-From 631872fadacbccee219545deb87aa63ef2b7b2ea Mon Sep 17 00:00:00 2001
+From 559b3dcfe845e56bbf54ab004a7fe107338d321e Mon Sep 17 00:00:00 2001
 From: Samuel Cobb <sjcobb2003@gmail.com>
-Date: Fri, 6 Feb 2026 11:24:36 +0000
-Subject: [PATCH] patch 
+Date: Fri, 6 Feb 2026 13:48:59 +0000
+Subject: [PATCH] squash
+
 ---
  crypto/cipher/e_tls.cc  |  55 ++++++++
  include/openssl/aead.h  |   3 +
  include/openssl/nid.h   |   5 +
- include/openssl/ssl.h   |  82 ++++++++++++
+ include/openssl/ssl.h   |  83 +++++++++++-
  include/openssl/tls1.h  |  17 +++
  ssl/extensions.cc       | 130 ++++++++++++++++++-
  ssl/handshake_client.cc | 149 ++++++++++++++++-----
@@ -15,7 +16,7 @@ Subject: [PATCH] patch
  ssl/ssl_key_share.cc    |   2 +
  ssl/ssl_lib.cc          |  93 ++++++++++++-
  ssl/ssl_privkey.cc      |  10 ++
- 12 files changed, 854 insertions(+), 40 deletions(-)
+ 12 files changed, 854 insertions(+), 41 deletions(-)
 
 diff --git a/crypto/cipher/e_tls.cc b/crypto/cipher/e_tls.cc
 index 39aaa2f57..60858e6d3 100644
@@ -128,7 +129,7 @@ index 7265f15f6..ebc1703df 100644
  #if defined(__cplusplus)
  } /* extern C */
 diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index 0730e769a..5dbd05495 100644
+index 0730e769a..12e1be5b8 100644
 --- a/include/openssl/ssl.h
 +++ b/include/openssl/ssl.h
 @@ -616,6 +616,13 @@ OPENSSL_EXPORT int SSL_version(const SSL *ssl);
@@ -238,7 +239,15 @@ index 0730e769a..5dbd05495 100644
  #define SSL_set_app_data(s, arg) (SSL_set_ex_data(s, 0, (char *)(arg)))
  #define SSL_get_app_data(s) (SSL_get_ex_data(s, 0))
  #define SSL_SESSION_set_app_data(s, a) \
-@@ -5942,6 +6021,9 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
+@@ -5615,7 +5694,6 @@ DEFINE_STACK_OF(SSL_COMP)
+ #define SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG 0
+ #define SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG 0
+ #define SSL_OP_NO_COMPRESSION 0
+-#define SSL_OP_NO_RENEGOTIATION 0  // ssl_renegotiate_never is the default
+ #define SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION 0
+ #define SSL_OP_NO_SSLv2 0
+ #define SSL_OP_NO_SSLv3 0
+@@ -5942,6 +6020,9 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
  #define SSL_CURVE_X25519 SSL_GROUP_X25519
  #define SSL_CURVE_X25519_KYBER768_DRAFT00 SSL_GROUP_X25519_KYBER768_DRAFT00
  
