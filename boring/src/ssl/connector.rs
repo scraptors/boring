@@ -3,11 +3,13 @@ use std::ops::{Deref, DerefMut};
 
 use crate::dh::Dh;
 use crate::error::ErrorStack;
+use crate::foreign_types::ForeignTypeRef;
+use crate::ssl::corresponds;
 use crate::ssl::{
     HandshakeError, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod, SslMode,
     SslOptions, SslRef, SslStream, SslVerifyMode,
 };
-use crate::version;
+use crate::{cvt, version};
 use std::net::IpAddr;
 
 use super::MidHandshakeSslStream;
@@ -240,6 +242,72 @@ impl ConnectConfiguration {
         self.setup_connect(domain, stream)
             .map_err(HandshakeError::SetupFailure)?
             .handshake()
+    }
+}
+
+impl ConnectConfiguration {
+    /// A builder-style version of `set_enable_ech_grease`
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_enable_ech_grease)]
+    pub fn enable_ech_grease(mut self, enable: bool) -> Self {
+        self.set_enable_ech_grease(enable);
+        self
+    }
+
+    /// Enables or disables ECH grease.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_enable_ech_grease)]
+    pub fn set_enable_ech_grease(&mut self, enable: bool) {
+        unsafe { ffi::SSL_set_enable_ech_grease(self.as_ptr(), enable as _) }
+    }
+
+    /// A builder-style version of `set_aes_hw_override`
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_aes_hw_override)]
+    pub fn aes_hw_override(mut self, enable: bool) -> Self {
+        self.set_aes_hw_override(enable);
+        self
+    }
+
+    /// Sets whether the aes hardware override should be enabled.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_aes_hw_override)]
+    pub fn set_aes_hw_override(&mut self, enable: bool) {
+        unsafe { ffi::SSL_set_aes_hw_override(self.as_ptr(), enable as _) }
+    }
+
+    /// A builder-style version of `add_application_settings`
+    #[corresponds(SSL_add_application_settings)]
+    pub fn application_settings(mut self, alps: &[u8]) -> Result<Self, ErrorStack> {
+        self.add_application_settings(alps).map(|_| self)
+    }
+
+    /// Sets application settings flag for ALPS (Application-Layer Protocol Negotiation).
+    #[corresponds(SSL_add_application_settings)]
+    pub fn add_application_settings(&mut self, alps: &[u8]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_add_application_settings(
+                self.as_ptr(),
+                alps.as_ptr(),
+                alps.len(),
+                std::ptr::null(),
+                0,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// A builder-style version of `set_alps_use_new_codepoint`
+    #[corresponds(SSL_set_alps_use_new_codepoint)]
+    pub fn alps_use_new_codepoint(mut self, use_new: bool) -> Self {
+        self.set_alps_use_new_codepoint(use_new);
+        self
+    }
+
+    /// Sets the ALPS use new codepoint flag.
+    #[corresponds(SSL_set_alps_use_new_codepoint)]
+    pub fn set_alps_use_new_codepoint(&mut self, use_new: bool) {
+        unsafe { ffi::SSL_set_alps_use_new_codepoint(self.as_ptr(), use_new as _) }
     }
 }
 

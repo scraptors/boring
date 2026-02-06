@@ -194,6 +194,9 @@ bitflags! {
 
         /// Disallow all renegotiation in TLSv1.2 and earlier.
         const NO_RENEGOTIATION = ffi::SSL_OP_NO_RENEGOTIATION as _;
+
+        /// Disables PSK with DHE.
+        const NO_PSK_DHE_KE = ffi::SSL_OP_NO_PSK_DHE_KE as _;
     }
 }
 
@@ -604,6 +607,7 @@ impl ExtensionType {
     pub const CERTIFICATE_TIMESTAMP: Self = Self(ffi::TLSEXT_TYPE_certificate_timestamp as u16);
     pub const NEXT_PROTO_NEG: Self = Self(ffi::TLSEXT_TYPE_next_proto_neg as u16);
     pub const CHANNEL_ID: Self = Self(ffi::TLSEXT_TYPE_channel_id as u16);
+    pub const RECORD_SIZE_LIMIT: Self = Self(ffi::TLSEXT_TYPE_record_size_limit as u16);
 }
 
 impl From<u16> for ExtensionType {
@@ -758,6 +762,8 @@ impl CertificateCompressionAlgorithm {
     pub const ZLIB: Self = Self(ffi::TLSEXT_cert_compression_zlib as u16);
 
     pub const BROTLI: Self = Self(ffi::TLSEXT_cert_compression_brotli as u16);
+
+    pub const ZSTD: Self = Self(ffi::TLSEXT_cert_compression_zstd as u16);
 }
 
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
@@ -1949,6 +1955,89 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set_grease_enabled)]
     pub fn set_grease_enabled(&mut self, enabled: bool) {
         unsafe { ffi::SSL_CTX_set_grease_enabled(self.as_ptr(), enabled as _) }
+    }
+
+    /// Sets whether the context should enable record size limit.
+    #[corresponds(SSL_CTX_set_record_size_limit)]
+    pub fn set_record_size_limit(&mut self, limit: u16) {
+        unsafe { ffi::SSL_CTX_set_record_size_limit(self.as_ptr(), limit as _) }
+    }
+
+    /// Sets whether the context should enable delegated credentials.
+    #[corresponds(SSL_CTX_set_delegated_credentials)]
+    pub fn set_delegated_credentials(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
+        let sigalgs = CString::new(sigalgs).unwrap();
+        unsafe {
+            cvt(ffi::SSL_CTX_set_delegated_credentials(self.as_ptr(), sigalgs.as_ptr()) as c_int)
+                .map(|_| ())
+        }
+    }
+
+    /// Sets whether the context should enable there key share extension.
+    #[corresponds(SSL_CTX_set_key_shares_limit)]
+    pub fn set_key_shares_limit(&mut self, limit: u8) {
+        unsafe { ffi::SSL_CTX_set_key_shares_limit(self.as_ptr(), limit as _) }
+    }
+
+    /// Sets whether the aes hardware override should be enabled.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_CTX_set_aes_hw_override)]
+    pub fn set_aes_hw_override(&mut self, enable: bool) {
+        unsafe { ffi::SSL_CTX_set_aes_hw_override(self.as_ptr(), enable as _) }
+    }
+
+    /// Sets whether to preserve the TLS 1.3 cipher list as configured by [`Self::set_cipher_list`].
+    ///
+    /// By default, BoringSSL does not preserve the TLS 1.3 cipher list. When this option is disabled
+    /// (the default), BoringSSL uses its internal default TLS 1.3 cipher suites in its default order,
+    /// regardless of what is set via [`Self::set_cipher_list`].
+    ///
+    /// When enabled, this option ensures that the TLS 1.3 cipher suites explicitly set via
+    /// [`Self::set_cipher_list`] are retained in their original order, without being reordered or
+    /// modified by BoringSSL's internal logic. This is useful for maintaining specific cipher suite
+    /// priorities for TLS 1.3. Note that if [`Self::set_cipher_list`] does not include any TLS 1.3
+    /// cipher suites, BoringSSL will still fall back to its default TLS 1.3 cipher suites and order.
+    ///
+    /// This feature isn't available in the certified version of BoringSSL.
+    ///
+    /// # Note
+    ///
+    /// This method must be called **before** [`Self::set_cipher_list`] to take effect.
+    /// If called after [`Self::set_cipher_list`], the setting will be ignored.
+    ///
+    /// [`Self::set_cipher_list`]: #method.set_cipher_list
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_CTX_set_preserve_tls13_cipher_list)]
+    pub fn set_preserve_tls13_cipher_list(&mut self, enable: bool) {
+        unsafe { ffi::SSL_CTX_set_preserve_tls13_cipher_list(self.as_ptr(), enable as _) }
+    }
+
+    /// Sets whether the ChaCha20 preference should be enabled.
+    ///
+    /// Controls the priority of TLS 1.3 cipher suites. When set to `true`, the client prefers:
+    /// AES_128_GCM, CHACHA20_POLY1305, then AES_256_GCM. Useful in environments with specific
+    /// encryption requirements.
+    #[cfg(not(feature = "fips"))]
+    #[deprecated(note = "use `set_preserve_tls13_cipher_list` instead")]
+    #[corresponds(SSL_CTX_set_prefer_chacha20)]
+    pub fn set_prefer_chacha20(&mut self, enable: bool) {
+        unsafe { ffi::SSL_CTX_set_preserve_tls13_cipher_list(self.as_ptr(), enable as _) }
+    }
+
+    /// Sets the indices of the extensions to be permuted.
+    #[corresponds(SSL_CTX_set_extension_order)]
+    pub fn set_extension_permutation(
+        &mut self,
+        indices: &[ExtensionType],
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_CTX_set_extension_order(
+                self.as_ptr(),
+                indices.as_ptr() as *const _,
+                indices.len() as _,
+            ))
+            .map(|_| ())
+        }
     }
 
     /// Configures whether ClientHello extensions should be permuted.
