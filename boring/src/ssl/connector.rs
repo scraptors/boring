@@ -309,6 +309,19 @@ impl ConnectConfiguration {
     pub fn set_alps_use_new_codepoint(&mut self, use_new: bool) {
         unsafe { ffi::SSL_set_alps_use_new_codepoint(self.as_ptr(), use_new as _) }
     }
+
+    /// Sets the client key shares to be used in the TLS 1.3 handshake.
+    #[corresponds(SSL_set1_client_key_shares)]
+    pub fn set_client_key_shares(&mut self, key_shares: &[u16]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_set1_client_key_shares(
+                self.as_ptr(),
+                key_shares.as_ptr() as *const _,
+                key_shares.len(),
+            ))
+            .map(|_| ())
+        }
+    }
 }
 
 impl Deref for ConnectConfiguration {
